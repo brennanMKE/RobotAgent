@@ -4,7 +4,7 @@
 import Foundation
 import simd
 
-nonisolated struct RobotJointState: Sendable {
+nonisolated struct RobotJointState: Sendable, Equatable {
     var baseYaw: Float = 0
     var shoulderPitch: Float = 0
     var elbowPitch: Float = 0

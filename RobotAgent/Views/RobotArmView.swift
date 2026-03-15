@@ -4,12 +4,14 @@
 import SwiftUI
 import RealityKit
 import os.log
+import Combine
 
 nonisolated private let logger = Logger(subsystem: Logging.subsystem, category: "RobotArmView")
 
 struct RobotArmView: View {
     @Environment(AppViewModel.self) private var appViewModel
     @State private var controlsHidden = false
+    @State private var sceneRoot: Entity?
 
     private var controller: RobotSimulatorController {
         appViewModel.robotController
@@ -19,14 +21,27 @@ struct RobotArmView: View {
         ZStack(alignment: Alignment(horizontal: .center, vertical: .bottom)) {
             // Full-screen RealityView background
             RealityView { content in
-                let sceneRoot = makeSceneRoot()
-                sceneRoot.name = "SceneRoot"
-                content.add(sceneRoot)
+                let root = makeSceneRoot()
+                root.name = "SceneRoot"
+                content.add(root)
+                // Store reference for updates
+                sceneRoot = root
+                logger.log("RealityView initialized with scene root")
             } update: { content in
                 guard let root = content.entities.first(where: { $0.name == "SceneRoot" }) else { return }
+                logger.log("RealityView update called")
                 updateScene(root: root, controller: controller)
             }
             .border(.red)
+            .onReceive(controller.objectWillChange) { _ in
+                logger.log("Controller changed, updating scene")
+                if let root = sceneRoot {
+                    logger.log("Updating scene with stored root")
+                    updateScene(root: root, controller: controller)
+                } else {
+                    logger.warning("sceneRoot is nil, cannot update scene")
+                }
+            }
 //            .logGeometry("RealityView")
 //            .onGeometryChange(for: CGSize.self) { geo in
 //                geo.size

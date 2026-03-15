@@ -229,7 +229,9 @@ class ChatViewModel {
     }
 
     /// Parse Kimi's custom tool call format from response text
-    /// Format: <|tool_calls_section_begin|> <|tool_call_begin|> functions.tool_name:id {json_args} <|tool_call_end|> <|tool_calls_section_end|>
+    /// Formats:
+    /// Old: <|tool_calls_section_begin|> <|tool_call_begin|> functions.tool_name:id {json_args} <|tool_call_end|> <|tool_calls_section_end|>
+    /// New: <|tool_calls_section_begin|> <|tool_call_begin|> functions.tool_name:id <|tool_call_argument_begin|> {json_args} <|tool_call_end|> <|tool_calls_section_end|>
     private func parseKimiToolCalls(from text: String) -> [ToolCall] {
         var toolCalls: [ToolCall] = []
 
@@ -245,8 +247,9 @@ class ChatViewModel {
 
         let toolSection = String(text[startRange.upperBound..<endRange.lowerBound])
 
-        // Split by tool_call markers
-        let toolCallPattern = "<|tool_call_begin|>(.*?)<|tool_call_end|>"
+        // Split by tool_call markers - handle both old and new formats
+        // Escape the pipe characters in the markers for regex
+        let toolCallPattern = "<\\|tool_call_begin\\|>(.*?)<\\|tool_call_end\\|>"
         guard let regex = try? NSRegularExpression(pattern: toolCallPattern, options: [.dotMatchesLineSeparators]) else {
             logger.error("Failed to create regex for Kimi tool call parsing")
             return toolCalls
@@ -262,17 +265,23 @@ class ChatViewModel {
             }
 
             let toolContent = String(toolSection[range]).trimmingCharacters(in: .whitespacesAndNewlines)
-
-            // Parse format: functions.tool_name:id {json_args} or functions.tool_name:id {}
-            // Find the function name/id part (before first { or space+{)
             let trimmed = toolContent.trimmingCharacters(in: .whitespacesAndNewlines)
 
-            // Find where the function name/id ends (at first whitespace followed by {)
-            guard let firstBraceIndex = trimmed.firstIndex(of: "{") else { continue }
+            // Extract function name and ID
+            let nameAndId: String
+            let arguments: String
 
-            // Get everything before the brace as name:id, everything from brace onward as args
-            let nameAndId = String(trimmed[..<firstBraceIndex]).trimmingCharacters(in: .whitespacesAndNewlines)
-            let arguments = String(trimmed[firstBraceIndex...])
+            // Check for new format with <|tool_call_argument_begin|>
+            if let argBeginRange = trimmed.range(of: "<|tool_call_argument_begin|>") {
+                // New format: functions.tool_name:id <|tool_call_argument_begin|> {json_args}
+                nameAndId = String(trimmed[..<argBeginRange.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines)
+                arguments = String(trimmed[argBeginRange.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
+            } else {
+                // Old format: functions.tool_name:id {json_args}
+                guard let firstBraceIndex = trimmed.firstIndex(of: "{") else { continue }
+                nameAndId = String(trimmed[..<firstBraceIndex]).trimmingCharacters(in: .whitespacesAndNewlines)
+                arguments = String(trimmed[firstBraceIndex...])
+            }
 
             // Extract tool name and ID from "functions.tool_name:id"
             let parts = nameAndId.split(separator: ".", maxSplits: 1).map(String.init)

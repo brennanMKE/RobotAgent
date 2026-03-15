@@ -5,7 +5,12 @@
       "Bash(chmod:*)",
       "Bash(log show:*)",
       "Bash(cat:*)",
-      "Bash(pkill:*)"
+      "Bash(pkill:*)",
+      "Bash(./build.sh clean:*)",
+      "Bash(./build.sh 2>&1 | tail -15)",
+      "Bash(bash Scripts/showlogs.sh)",
+      "Bash(zsh Scripts/showlogs.sh 2>&1)",
+      "Bash(zsh Scripts/showlogs.sh | head -5)"
     ]
   }
 }
