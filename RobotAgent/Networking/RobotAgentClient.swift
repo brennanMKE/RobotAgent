@@ -6,7 +6,7 @@ import os.log
 
 nonisolated private let logger = Logger(subsystem: Logging.subsystem, category: "Client")
 
-nonisolated struct ChatMessage: Codable {
+nonisolated struct ChatMessage: Codable, Sendable {
     let role: String
     let content: String?
     let reasoningContent: String?
@@ -19,12 +19,12 @@ nonisolated struct ChatMessage: Codable {
     }
 }
 
-nonisolated struct ChatCompletionRequest: Codable {
+nonisolated struct ChatCompletionRequest: Codable, Sendable {
     let model: String
     let messages: [ChatMessage]
 }
 
-nonisolated struct ChatCompletionResponse: Codable {
+nonisolated struct ChatCompletionResponse: Codable, Sendable {
     let id: String
     let object: String
     let created: Int
@@ -32,13 +32,13 @@ nonisolated struct ChatCompletionResponse: Codable {
     let choices: [Choice]
     let usage: Usage?
 
-    struct Choice: Codable {
+    struct Choice: Codable, Sendable {
         let index: Int
         let message: ChatMessage
         let finishReason: String?
     }
 
-    struct Usage: Codable {
+    struct Usage: Codable, Sendable {
         let promptTokens: Int
         let completionTokens: Int
         let totalTokens: Int
@@ -81,7 +81,7 @@ nonisolated func extractThinkBlocks(_ s: String) -> (thinking: String?, content:
 }
 
 /// HTTP methods for API requests
-nonisolated enum HTTPMethod: String, CaseIterable {
+nonisolated enum HTTPMethod: String, CaseIterable, Sendable {
     case GET = "GET"
     case POST = "POST"
     case PUT = "PUT"
@@ -89,7 +89,7 @@ nonisolated enum HTTPMethod: String, CaseIterable {
     case PATCH = "PATCH"
 }
 
-nonisolated enum Path: String {
+nonisolated enum Path: String, Sendable {
     case chatCompletions = "/chat/completions"
     case models = "/models"
 
@@ -98,23 +98,23 @@ nonisolated enum Path: String {
     }
 }
 
-nonisolated enum RobotAgentClientError: Error {
+nonisolated enum RobotAgentClientError: Error, Sendable {
     case invalidURL(reason: String)
     case invalidResponse(reason: String)
     case unsupportedRequest
     case missingData
 }
 
-nonisolated struct ModelsResponse: Codable {
+nonisolated struct ModelsResponse: Codable, Sendable {
     let object: String
     let data: [Model]
 
-    struct Model: Codable {
+    struct Model: Codable, Sendable {
         let id: String
     }
 }
 
-nonisolated class RobotAgentClient {
+class RobotAgentClient {
     let session: URLSession
     let isTesting: Bool
 
@@ -276,7 +276,7 @@ nonisolated class RobotAgentClient {
     }
 }
 
-nonisolated class MockURLProtocol: URLProtocol {
+class MockURLProtocol: URLProtocol {
     override class func canInit(with request: URLRequest) -> Bool {
         guard let url = request.url else {
             return false
