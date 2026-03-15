@@ -93,7 +93,7 @@ struct ChatView: View {
                 chatViewModel.stopGeneration()
             }
         }
-        .logGeometry("ChatView-VStack")
+//        .logGeometry("ChatView-VStack")
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .navigationTitle(session.name)
 //        .navigationBarTitleDisplayMode(.inline)
