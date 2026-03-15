@@ -8,8 +8,12 @@ import os.log
 nonisolated private let logger = Logger(subsystem: Logging.subsystem, category: "RobotArmView")
 
 struct RobotArmView: View {
-    @StateObject private var controller = RobotSimulatorController()
+    @Environment(AppViewModel.self) private var appViewModel
     @State private var controlsHidden = false
+
+    private var controller: RobotSimulatorController {
+        appViewModel.robotController
+    }
 
     var body: some View {
         ZStack(alignment: Alignment(horizontal: .center, vertical: .bottom)) {
@@ -23,7 +27,7 @@ struct RobotArmView: View {
                 updateScene(root: root, controller: controller)
             }
             .border(.red)
-            .logGeometry("RealityView")
+//            .logGeometry("RealityView")
 //            .onGeometryChange(for: CGSize.self) { geo in
 //                geo.size
 //            } action: { size in
@@ -77,7 +81,7 @@ struct RobotArmView: View {
                 .background(Color.black.opacity(0.7))
                 .cornerRadius(12)
                 .padding()
-                .logGeometry("Arm State")
+//                .logGeometry("Arm State")
             }
         }
         .onAppear {

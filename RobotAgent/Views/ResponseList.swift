@@ -64,6 +64,11 @@ private struct PromptResponseRow: View {
                 if let thinking = response.thinkingText {
                     ThinkingBubble(text: thinking)
                 }
+
+                if !prompt.toolExecutions.isEmpty {
+                    ToolExecutionView(executions: prompt.toolExecutions)
+                }
+
                 AssistantBubble(responseText: response.text) {
                     MarkdownView(text: response.text ?? "-")
                 }

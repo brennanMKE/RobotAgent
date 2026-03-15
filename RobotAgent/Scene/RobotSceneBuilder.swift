@@ -22,7 +22,7 @@ func makeSceneRoot() -> Entity {
     // Anchor for the robot
     let anchor = Entity()
     anchor.name = "RobotAnchor"
-    anchor.position = [0, 0.05, 0]
+    anchor.position = [0, -0.50, 0]
     root.addChild(anchor)
 
     let robot = makeRobotArm()

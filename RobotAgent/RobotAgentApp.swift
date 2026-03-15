@@ -2,6 +2,9 @@
 // RobotAgentApp.swift
 
 import SwiftUI
+import os.log
+
+nonisolated private let logger = Logger(subsystem: Logging.subsystem, category: "RobotAgentApp")
 
 // Environment Values are used to pass values down the SwiftUI view hierarchy
 
@@ -34,6 +37,9 @@ struct RobotAgentApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .task {
+                    logger.log("App launched")
+                }
                 .environment(\.robotAgentClient, client)
                 .environment(appViewModel)
         }

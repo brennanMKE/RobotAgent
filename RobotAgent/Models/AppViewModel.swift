@@ -2,6 +2,7 @@
 // AppViewModel.swift
 
 import Foundation
+import SwiftUI
 
 @Observable
 class AppViewModel {
@@ -9,6 +10,9 @@ class AppViewModel {
     var selectedSessionID: UUID {
         didSet { save() }
     }
+
+    @MainActor
+    let robotController = RobotSimulatorController()
 
     init() {
         if let store = PersistedStore.load(), !store.sessions.isEmpty {
@@ -21,6 +25,13 @@ class AppViewModel {
             selectedSessionID = first.id
         }
         wireSaveCallbacks()
+        wireRobotController()
+    }
+
+    private func wireRobotController() {
+        for session in sessions {
+            session.chatViewModel.robotToolHandler = RobotToolHandler(controller: robotController)
+        }
     }
 
     var selectedSession: ChatSession {
@@ -53,6 +64,7 @@ class AppViewModel {
     private func wire(_ session: ChatSession) {
         session.onSaveNeeded = { [weak self] in self?.save() }
         session.chatViewModel.onSaveNeeded = { [weak self] in self?.save() }
+        session.chatViewModel.robotToolHandler = RobotToolHandler(controller: robotController)
     }
 
     func save() {

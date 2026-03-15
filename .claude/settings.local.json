@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(xcodebuild:*)"
+      "Bash(xcodebuild:*)",
+      "Bash(chmod:*)",
+      "Bash(log show:*)",
+      "Bash(cat:*)",
+      "Bash(pkill:*)"
     ]
   }
 }

@@ -32,6 +32,7 @@ struct ChatView: View {
     @State private var showExporter = false
     @State private var exportText = ""
     @State private var elapsedSeconds: Int = 0
+    @State private var autopromptSent = false
 
     private var chatViewModel: ChatViewModel {
         session.chatViewModel
@@ -97,7 +98,19 @@ struct ChatView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .navigationTitle(session.name)
 //        .navigationBarTitleDisplayMode(.inline)
-        .onAppear { isPromptFocused = true }
+        .onAppear {
+            isPromptFocused = true
+
+            // Check for -autoprompt command-line argument
+            if !autopromptSent && CommandLine.arguments.contains("-autoprompt") {
+                autopromptSent = true
+                Task {
+                    try? await Task.sleep(for: .milliseconds(500))
+                    logger.log("Sending autoprompt: 'lower the gripper'")
+                    chatViewModel.createResponse(promptText: "lower the gripper", using: client)
+                }
+            }
+        }
         .task(id: chatViewModel.isGenerating) {
             guard chatViewModel.isGenerating else { return }
             elapsedSeconds = 0

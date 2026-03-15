@@ -10,18 +10,79 @@ nonisolated struct ChatMessage: Codable, Sendable {
     let role: String
     let content: String?
     let reasoningContent: String?
+    let toolCallId: String?
+
+    enum CodingKeys: String, CodingKey {
+        case role, content, reasoningContent
+        case toolCallId = "tool_call_id"
+    }
 
     // Convenience init for outgoing messages (content always present)
-    init(role: String, content: String) {
+    init(role: String, content: String, toolCallId: String? = nil) {
         self.role = role
         self.content = content
         self.reasoningContent = nil
+        self.toolCallId = toolCallId
     }
+}
+
+nonisolated struct ToolFunction: Codable, Sendable {
+    let name: String
+    let description: String
+    let parameters: ToolParameters
+}
+
+nonisolated struct ToolParameters: Codable, Sendable {
+    let type: String
+    let properties: [String: PropertySchema]
+    let required: [String]
+}
+
+nonisolated struct PropertySchema: Codable, Sendable {
+    let type: String
+    let description: String
+    let `enum`: [String]?
+
+    init(type: String, description: String, enum: [String]? = nil) {
+        self.type = type
+        self.description = description
+        self.`enum` = `enum`
+    }
+}
+
+nonisolated struct Tool: Codable, Sendable {
+    let type: String
+    let function: ToolFunction
 }
 
 nonisolated struct ChatCompletionRequest: Codable, Sendable {
     let model: String
     let messages: [ChatMessage]
+    let tools: [Tool]?
+    let toolChoice: String?
+
+    enum CodingKeys: String, CodingKey {
+        case model, messages, tools
+        case toolChoice = "tool_choice"
+    }
+
+    init(model: String, messages: [ChatMessage], tools: [Tool]? = nil, toolChoice: String? = nil) {
+        self.model = model
+        self.messages = messages
+        self.tools = tools
+        self.toolChoice = toolChoice
+    }
+}
+
+nonisolated struct ToolCall: Codable, Sendable {
+    let id: String
+    let type: String
+    let function: ToolCallFunction
+}
+
+nonisolated struct ToolCallFunction: Codable, Sendable {
+    let name: String
+    let arguments: String  // JSON string
 }
 
 nonisolated struct ChatCompletionResponse: Codable, Sendable {
@@ -31,17 +92,47 @@ nonisolated struct ChatCompletionResponse: Codable, Sendable {
     let model: String
     let choices: [Choice]
     let usage: Usage?
+    // Kimi-specific fields
+    let serviceTier: String?
+    let systemFingerprint: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, object, created, model, choices, usage
+        case serviceTier = "service_tier"
+        case systemFingerprint = "system_fingerprint"
+    }
 
     struct Choice: Codable, Sendable {
         let index: Int
-        let message: ChatMessage
+        let message: ResponseMessage
         let finishReason: String?
+        // Kimi-specific fields
+        let avgDecodedTokensPerIter: Double?
+        let disaggregatedParams: String?
+        let logprobs: String?
+        let mmEmbeddingHandle: String?
+        let stopReason: Int?
+
+        enum CodingKeys: String, CodingKey {
+            case index, message, logprobs
+            case finishReason = "finish_reason"
+            case avgDecodedTokensPerIter = "avg_decoded_tokens_per_iter"
+            case disaggregatedParams = "disaggregated_params"
+            case mmEmbeddingHandle = "mm_embedding_handle"
+            case stopReason = "stop_reason"
+        }
     }
 
     struct Usage: Codable, Sendable {
-        let promptTokens: Int
-        let completionTokens: Int
-        let totalTokens: Int
+        let promptTokens: Int?
+        let completionTokens: Int?
+        let totalTokens: Int?
+
+        enum CodingKeys: String, CodingKey {
+            case promptTokens = "prompt_tokens"
+            case completionTokens = "completion_tokens"
+            case totalTokens = "total_tokens"
+        }
     }
 
     var thinkingText: String? {
@@ -49,7 +140,7 @@ nonisolated struct ChatCompletionResponse: Codable, Sendable {
         if let content = message.content {
             return extractThinkBlocks(content).thinking
         }
-        return message.reasoningContent
+        return nil
     }
 
     var text: String? {
@@ -58,7 +149,36 @@ nonisolated struct ChatCompletionResponse: Codable, Sendable {
             let cleaned = extractThinkBlocks(content).content
             return cleaned.isEmpty ? nil : cleaned
         }
-        return message.reasoningContent
+        return nil
+    }
+
+    var toolCalls: [ToolCall]? {
+        choices.first?.message.toolCalls
+    }
+
+    var hasToolCalls: Bool {
+        choices.first?.message.toolCalls != nil && !(choices.first?.message.toolCalls?.isEmpty ?? true)
+    }
+}
+
+nonisolated struct ResponseMessage: Codable, Sendable {
+    let role: String
+    let content: String?
+    let toolCalls: [ToolCall]?
+    // Kimi-specific fields
+    let refusal: String?
+    let audio: String?
+    let functionCall: String?
+    let reasoning: String?
+    let reasoningContent: String?
+    let annotations: String?
+
+    enum CodingKeys: String, CodingKey {
+        case role, content, refusal, audio, annotations
+        case toolCalls = "tool_calls"
+        case functionCall = "function_call"
+        case reasoning = "reasoning"
+        case reasoningContent = "reasoning_content"
     }
 }
 
@@ -134,8 +254,76 @@ class RobotAgentClient {
     }
 
     var systemPrompt: String {
-        UserDefaults.standard.string(forKey: "system_prompt") ?? ""
+        UserDefaults.standard.string(forKey: "system_prompt") ?? RobotAgentClient.defaultSystemPrompt
     }
+
+    static let defaultSystemPrompt = """
+You are a robot arm planning assistant for the Nebius robotics hackathon.
+
+Your job is to control a robotic arm for jewelry making and soldering tasks.
+
+Rules:
+1. Use the available tools to move and control the robot arm.
+2. Never guess robot state - call get_arm_state() to check current position before planning movements.
+3. Use set_joint_angles() for smooth interpolated movements with appropriate durations.
+4. Use set_joint_angles_sequence() for complex multi-step movements.
+5. Use move_home() to return to the neutral position.
+6. Use open_gripper() and close_gripper() for gripper control.
+7. Always confirm actions succeeded based on tool results.
+8. If a tool call fails, explain the error and suggest an alternative.
+9. When the user's goal is complete, summarize what movements were executed.
+"""
+
+    static let robotTools: [Tool] = [
+        Tool(type: "function", function: ToolFunction(
+            name: "get_arm_state",
+            description: "Get the current position of all robot arm joints",
+            parameters: ToolParameters(type: "object", properties: [:], required: [])
+        )),
+        Tool(type: "function", function: ToolFunction(
+            name: "set_joint_angles",
+            description: "Move robot arm to specified joint angles with smooth interpolation",
+            parameters: ToolParameters(
+                type: "object",
+                properties: [
+                    "baseYaw": PropertySchema(type: "number", description: "Base rotation in radians (-π to π)"),
+                    "shoulderPitch": PropertySchema(type: "number", description: "Shoulder pitch in radians (-0.5 to 1.2)"),
+                    "elbowPitch": PropertySchema(type: "number", description: "Elbow pitch in radians (-1.5 to 1.5)"),
+                    "wristPitch": PropertySchema(type: "number", description: "Wrist pitch in radians (-1.5 to 1.5)"),
+                    "gripperOpen": PropertySchema(type: "number", description: "Gripper opening in meters (0.002 to 0.05)"),
+                    "duration": PropertySchema(type: "number", description: "Animation duration in seconds (default 1.0)")
+                ],
+                required: ["baseYaw", "shoulderPitch", "elbowPitch", "wristPitch", "gripperOpen"]
+            )
+        )),
+        Tool(type: "function", function: ToolFunction(
+            name: "set_joint_angles_sequence",
+            description: "Execute a sequence of joint angle positions in order",
+            parameters: ToolParameters(
+                type: "object",
+                properties: [
+                    "positions": PropertySchema(type: "array", description: "Array of position objects, each with baseYaw, shoulderPitch, elbowPitch, wristPitch, gripperOpen"),
+                    "duration": PropertySchema(type: "number", description: "Duration per position in seconds")
+                ],
+                required: ["positions", "duration"]
+            )
+        )),
+        Tool(type: "function", function: ToolFunction(
+            name: "move_home",
+            description: "Return the robot arm to neutral home position",
+            parameters: ToolParameters(type: "object", properties: [:], required: [])
+        )),
+        Tool(type: "function", function: ToolFunction(
+            name: "open_gripper",
+            description: "Open the gripper fully",
+            parameters: ToolParameters(type: "object", properties: [:], required: [])
+        )),
+        Tool(type: "function", function: ToolFunction(
+            name: "close_gripper",
+            description: "Close the gripper",
+            parameters: ToolParameters(type: "object", properties: [:], required: [])
+        ))
+    ]
 
     init(session: URLSession? = nil, isTesting: Bool = false) {
         if let session {
@@ -180,8 +368,14 @@ class RobotAgentClient {
         if !systemPrompt.isEmpty {
             allMessages.insert(ChatMessage(role: "system", content: systemPrompt), at: 0)
         }
-        let input = ChatCompletionRequest(model: selectedModel, messages: allMessages)
+        let input = ChatCompletionRequest(
+            model: selectedModel,
+            messages: allMessages,
+            tools: RobotAgentClient.robotTools,
+            toolChoice: "required"
+        )
         let encoder = JSONEncoder()
+        encoder.keyEncodingStrategy = .convertToSnakeCase
         let data = try encoder.encode(input)
         request.httpBody = data
 
@@ -200,7 +394,7 @@ class RobotAgentClient {
         let response = try decoder.decode(ChatCompletionResponse.self, from: data)
 
         let choice = response.choices.first
-        logger.log("createResponse: choices=\(response.choices.count) finishReason='\(choice?.finishReason ?? "nil", privacy: .public)' content=\(choice?.message.content != nil) reasoningContent=\(choice?.message.reasoningContent != nil) tokens=\(response.usage?.totalTokens ?? -1)")
+        logger.log("createResponse: choices=\(response.choices.count) finishReason='\(choice?.finishReason ?? "nil", privacy: .public)' content=\(choice?.message.content != nil) toolCalls=\(response.hasToolCalls) tokens=\(response.usage?.totalTokens ?? -1)")
 
         return response
     }

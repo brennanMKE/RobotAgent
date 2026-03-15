@@ -4,5 +4,5 @@
 import Foundation
 
 public enum Logging {
-    static let subsystem = "RobotAgent"
+    static let subsystem = "co.sstools.RobotAgent"
 }
