@@ -97,11 +97,6 @@ Settings are validated automatically when changed and stored in UserDefaults.
 
 ### Logging
 
-View real-time logs:
-```bash
-/usr/bin/log show --predicate 'subsystem == "co.sstools.RobotAgent"' --follow
-```
-
 View logs from last minute:
 ```bash
 /usr/bin/log show --predicate 'subsystem == "co.sstools.RobotAgent"' --last 1m
