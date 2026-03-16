@@ -7,15 +7,6 @@ import SwiftUI
 func makeSceneRoot() -> Entity {
     let root = Entity()
 
-    // Large workspace floor with grid appearance
-    let floor = ModelEntity(
-        mesh: .generatePlane(width: 2.0, depth: 2.0),
-        materials: [SimpleMaterial(color: NSColor(red: 0.3, green: 0.3, blue: 0.32, alpha: 1.0), roughness: 0.8, isMetallic: false)]
-    )
-    floor.name = "Floor"
-    floor.position = [0, 0, 0]
-    root.addChild(floor)
-
     // Add grid lines for better depth perception
     addGridLines(to: root)
 

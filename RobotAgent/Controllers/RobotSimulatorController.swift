@@ -2,15 +2,21 @@
 // RobotSimulatorController.swift - Robot state and animation logic
 
 import Foundation
-import SwiftUI
-import Combine
+import Observation
 
+@Observable
 @MainActor
-final class RobotSimulatorController: ObservableObject {
-    @Published var joints = RobotJointState()
-    @Published var isAnimating = false
+final class RobotSimulatorController {
+    var joints = RobotJointState()
+    var isAnimating = false
+    var savedPoses: [RobotPose] = []
 
     private var animationTask: Task<Void, Never>?
+    private let posesKey = "robot_saved_poses"
+
+    init() {
+        loadSavedPoses()
+    }
 
     func resetScene() {
         moveTo(RobotJointState())
@@ -60,4 +66,84 @@ final class RobotSimulatorController: ObservableObject {
             return 1 - 2 * (1 - t) * (1 - t)
         }
     }
+
+    // MARK: - Pose Management
+
+    func savePose(name: String) {
+        let pose = RobotPose(name: name, state: joints)
+        savedPoses.append(pose)
+        persistSavedPoses()
+    }
+
+    func loadPose(_ pose: RobotPose) {
+        moveTo(pose.state)
+    }
+
+    func deletePose(_ pose: RobotPose) {
+        savedPoses.removeAll { $0.id == pose.id }
+        persistSavedPoses()
+    }
+
+    func loadPreset(_ preset: RobotPreset) {
+        moveTo(preset.state)
+    }
+
+    private func persistSavedPoses() {
+        do {
+            let data = try JSONEncoder().encode(savedPoses)
+            UserDefaults.standard.set(data, forKey: posesKey)
+        } catch {
+            print("Failed to save poses: \(error)")
+        }
+    }
+
+    private func loadSavedPoses() {
+        guard let data = UserDefaults.standard.data(forKey: posesKey) else {
+            savedPoses = []
+            return
+        }
+        do {
+            savedPoses = try JSONDecoder().decode([RobotPose].self, from: data)
+        } catch {
+            print("Failed to load poses: \(error)")
+            savedPoses = []
+        }
+    }
+}
+
+// MARK: - Preset Poses
+nonisolated struct RobotPreset: Identifiable {
+    let id: String
+    let name: String
+    let state: RobotJointState
+}
+
+extension RobotPreset {
+    static let presets = [
+        RobotPreset(
+            id: "home",
+            name: "Home Position",
+            state: RobotJointState(baseYaw: 0, shoulderPitch: 0, elbowPitch: 0, wristPitch: 0, gripperOpen: 0.04)
+        ),
+        RobotPreset(
+            id: "reach_forward",
+            name: "Reach Forward",
+            state: RobotJointState(baseYaw: 0, shoulderPitch: 0.5, elbowPitch: 0.8, wristPitch: 0, gripperOpen: 0.04)
+        ),
+        RobotPreset(
+            id: "reach_up",
+            name: "Reach Up",
+            state: RobotJointState(baseYaw: 0, shoulderPitch: 1.0, elbowPitch: -1.0, wristPitch: 0, gripperOpen: 0.04)
+        ),
+        RobotPreset(
+            id: "grip_ready",
+            name: "Grip Ready",
+            state: RobotJointState(baseYaw: 0, shoulderPitch: 0.3, elbowPitch: 0.3, wristPitch: 0, gripperOpen: 0.005)
+        ),
+        RobotPreset(
+            id: "inspect",
+            name: "Inspect Position",
+            state: RobotJointState(baseYaw: 0, shoulderPitch: -0.3, elbowPitch: 0, wristPitch: 0, gripperOpen: 0.04)
+        ),
+    ]
 }
