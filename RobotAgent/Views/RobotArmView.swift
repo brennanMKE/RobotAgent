@@ -32,7 +32,6 @@ struct RobotArmView: View {
                 logger.log("RealityView update called")
                 updateScene(root: root, controller: controller)
             }
-            .border(.red)
             .onReceive(controller.objectWillChange) { _ in
                 logger.log("Controller changed, updating scene")
                 if let root = sceneRoot {
@@ -42,12 +41,6 @@ struct RobotArmView: View {
                     logger.warning("sceneRoot is nil, cannot update scene")
                 }
             }
-//            .logGeometry("RealityView")
-//            .onGeometryChange(for: CGSize.self) { geo in
-//                geo.size
-//            } action: { size in
-//                logger.log("View size is \(size.width)x\(size.height)")
-//            }
 
             if !controlsHidden {
                 // Overlay control panel with 0.7 opacity

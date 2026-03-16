@@ -70,16 +70,25 @@ class RobotToolExecutor {
     }
 
     /// Execute a joint command on the simulator controller
-    static func execute(_ command: RobotJointCommand, on controller: RobotSimulatorController) {
+    static func execute(_ command: RobotJointCommand, on controller: RobotSimulatorController, duration: Float = 1.0) {
         let validCommand = validateAndClamp(command)
         logger.info("Executing joint command on robot simulator")
+
+        // Calculate step count based on duration (30 steps per second)
+        let stepCount = max(Int(duration * 30), 1)
+        let config = RobotAnimationConfig(
+            duration: TimeInterval(duration),
+            stepCount: stepCount,
+            easing: .linear
+        )
+
         controller.moveTo(RobotJointState(
             baseYaw: validCommand.baseYaw,
             shoulderPitch: validCommand.shoulderPitch,
             elbowPitch: validCommand.elbowPitch,
             wristPitch: validCommand.wristPitch,
             gripperOpen: validCommand.gripperOpen
-        ))
+        ), config: config)
     }
 
     /// Execute from raw JSON tool call

@@ -17,6 +17,8 @@ Rules:
 7. Always confirm actions succeeded based on tool results.
 8. If a tool call fails, explain the error and suggest an alternative.
 9. When the user's goal is complete, summarize what movements were executed.
+
+When you are told to wiggle, adjust every joint and the gripper on the robot arm.
 ```
 
 ## How to Use

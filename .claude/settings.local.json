@@ -10,7 +10,8 @@
       "Bash(./build.sh 2>&1 | tail -15)",
       "Bash(bash Scripts/showlogs.sh)",
       "Bash(zsh Scripts/showlogs.sh 2>&1)",
-      "Bash(zsh Scripts/showlogs.sh | head -5)"
+      "Bash(zsh Scripts/showlogs.sh | head -5)",
+      "Bash(./build.sh 2>&1 | tail -5)"
     ]
   }
 }

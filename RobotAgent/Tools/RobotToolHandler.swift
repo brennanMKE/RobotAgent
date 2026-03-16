@@ -100,6 +100,10 @@ class RobotToolHandler {
             return ToolResult(success: false, message: "Invalid sequence format", data: nil)
         }
 
+        let durationPerPosition = Float(duration.doubleValue)
+
+        // Validate all positions before executing
+        var commands: [RobotJointCommand] = []
         for position in positions {
             guard let baseYaw = position["baseYaw"]?.floatValue,
                   let shoulderPitch = position["shoulderPitch"]?.floatValue,
@@ -116,13 +120,19 @@ class RobotToolHandler {
                 wristPitch: wristPitch,
                 gripperOpen: gripperOpen
             )
-
-            RobotToolExecutor.execute(command, on: controller)
-            // Small delay between positions
-            Thread.sleep(forTimeInterval: TimeInterval(duration.doubleValue))
+            commands.append(command)
         }
 
-        return ToolResult(success: true, message: "Sequence executed successfully", data: nil)
+        // Execute sequence asynchronously without blocking
+        Task {
+            for command in commands {
+                RobotToolExecutor.execute(command, on: controller, duration: durationPerPosition)
+                // Wait for this animation to complete before moving to next
+                try? await Task.sleep(for: .seconds(TimeInterval(durationPerPosition)))
+            }
+        }
+
+        return ToolResult(success: true, message: "Sequence executing with \(commands.count) positions", data: nil)
     }
 
     private func handleMoveHome() -> ToolResult {

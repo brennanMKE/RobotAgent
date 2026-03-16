@@ -13,7 +13,7 @@ final class RobotSimulatorController: ObservableObject {
     private var animationTask: Task<Void, Never>?
 
     func resetScene() {
-        joints = RobotJointState()
+        moveTo(RobotJointState())
     }
 
     func moveTo(_ targetState: RobotJointState, config: RobotAnimationConfig = .default) {
